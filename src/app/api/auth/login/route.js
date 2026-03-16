@@ -5,33 +5,49 @@ import { signToken, getCookieName } from "@/lib/auth";
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
 
-    if (!email || !password) {
+    const normalizedEmail = String(body?.email || "").trim().toLowerCase();
+    const password = String(body?.password || "");
+
+    if (!normalizedEmail || !password) {
       return NextResponse.json(
         { message: "Email and password are required" },
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { role: true },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: normalizedEmail,
+        deletedAt: null,
+        isActive: true,
+      },
+      include: {
+        role: true,
+      },
     });
 
     if (!user) {
-      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
+
     if (!isMatch) {
-      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
     const token = signToken({
       userId: user.id,
       roleId: user.roleId,
-      roleName: user.role.name,
+      roleName: user.role?.name || null,
     });
 
     const response = NextResponse.json({
@@ -40,7 +56,7 @@ export async function POST(req) {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role.name,
+        role: user.role?.name || null,
       },
     });
 
@@ -48,15 +64,21 @@ export async function POST(req) {
       name: getCookieName(),
       value: token,
       httpOnly: true,
-      secure: false, // true in production (HTTPS)
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;
   } catch (err) {
+    console.error("LOGIN ERROR:", err);
+
     return NextResponse.json(
-      { message: "Server error", error: err.message },
+      {
+        message: "Server error",
+        error: String(err?.message || err),
+      },
       { status: 500 }
     );
   }
