@@ -13,6 +13,7 @@ const initialForm = {
   imageUrl: "",
   imageFile: null,
   imagePreview: "",
+  removeImage: false,
   addonIds: [],
   variants: [
     {
@@ -44,7 +45,7 @@ function getPricePreview(basePrice, variants = []) {
       : null;
 
   const variantLabel = !prices.length
-    ? "-"
+    ? "No variants"
     : Math.min(...prices) === Math.max(...prices)
     ? formatCurrency(Math.min(...prices))
     : `${formatCurrency(Math.min(...prices))} - ${formatCurrency(
@@ -101,7 +102,7 @@ export default function ProductCreateDrawer({
     }
 
     if (form.basePrice === "" || Number(form.basePrice) < 0) {
-      newErrors.basePrice = "Base price must be 0 or more.";
+      newErrors.basePrice = "Actual/base price must be 0 or more.";
     }
 
     const cleanedVariants = form.variants.filter(
@@ -110,10 +111,6 @@ export default function ProductCreateDrawer({
         variant.price !== "" ||
         variant.stock !== ""
     );
-
-    if (cleanedVariants.length === 0) {
-      newErrors.variants = "At least one variant is required.";
-    }
 
     const variantItemErrors = [];
     const seenNames = new Map();
@@ -166,6 +163,7 @@ export default function ProductCreateDrawer({
     formData.append("basePrice", String(Number(form.basePrice || 0)));
     formData.append("isActive", String(!!form.isActive));
     formData.append("isSpecial", String(!!form.isSpecial));
+    formData.append("removeImage", String(!!form.removeImage));
 
     if (form.imageFile) {
       formData.append("image", form.imageFile);
@@ -198,9 +196,7 @@ export default function ProductCreateDrawer({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
-
     onSubmit?.(buildFormData());
   };
 
@@ -230,7 +226,7 @@ export default function ProductCreateDrawer({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Base Product Price
+                Actual Product Price
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-900">
                 {pricePreview.baseLabel}
@@ -239,7 +235,7 @@ export default function ProductCreateDrawer({
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Original Price Range
+                Variant Price Range
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-900">
                 {pricePreview.variantLabel}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import ProductFormFields from "./ProductFormFields";
 
-const emptyForm = {
+const initialForm = {
   name: "",
   categoryId: "",
   basePrice: "",
@@ -13,14 +13,9 @@ const emptyForm = {
   imageUrl: "",
   imageFile: null,
   imagePreview: "",
+  removeImage: false,
   addonIds: [],
-  variants: [
-    {
-      name: "",
-      price: "",
-      stock: "",
-    },
-  ],
+  variants: [],
 };
 
 function formatCurrency(value) {
@@ -44,7 +39,7 @@ function getPricePreview(basePrice, variants = []) {
       : null;
 
   const variantLabel = !prices.length
-    ? "-"
+    ? "No variants"
     : Math.min(...prices) === Math.max(...prices)
     ? formatCurrency(Math.min(...prices))
     : `${formatCurrency(Math.min(...prices))} - ${formatCurrency(
@@ -61,6 +56,40 @@ function getPricePreview(basePrice, variants = []) {
   };
 }
 
+function mapProductToForm(product) {
+  return {
+    name: product?.name || "",
+    categoryId: product?.category?.id ? String(product.category.id) : "",
+    basePrice:
+      product?.basePrice !== null && product?.basePrice !== undefined
+        ? String(product.basePrice)
+        : "",
+    isActive: !!product?.isActive,
+    isSpecial: !!product?.isSpecial,
+    imageUrl: product?.imageUrl || "",
+    imageFile: null,
+    imagePreview: "",
+    removeImage: false,
+    addonIds: Array.isArray(product?.addons)
+      ? product.addons.map((addon) => Number(addon.id))
+      : [],
+    variants: Array.isArray(product?.variants)
+      ? product.variants.map((variant) => ({
+          id: variant.id,
+          name: variant.name || "",
+          price:
+            variant?.price !== null && variant?.price !== undefined
+              ? String(variant.price)
+              : "",
+          stock:
+            variant?.stock !== null && variant?.stock !== undefined
+              ? String(variant.stock)
+              : "",
+        }))
+      : [],
+  };
+}
+
 export default function ProductEditDrawer({
   open,
   onClose,
@@ -70,47 +99,19 @@ export default function ProductEditDrawer({
   addons = [],
   loading = false,
 }) {
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (open && product) {
-      setForm({
-        name: product?.name || "",
-        categoryId: String(product?.categoryId || product?.category?.id || ""),
-        basePrice:
-          product?.basePrice !== undefined && product?.basePrice !== null
-            ? String(product.basePrice)
-            : "",
-        isActive:
-          typeof product?.isActive === "boolean" ? product.isActive : true,
-        isSpecial:
-          typeof product?.isSpecial === "boolean" ? product.isSpecial : false,
-        imageUrl: product?.imageUrl || "",
-        imageFile: null,
-        imagePreview: product?.imageUrl || "",
-        addonIds: Array.isArray(product?.addons)
-          ? product.addons.map((item) => Number(item?.id ?? item))
-          : [],
-        variants:
-          Array.isArray(product?.variants) && product.variants.length
-            ? product.variants.map((variant) => ({
-                id: variant.id,
-                name: variant.name || "",
-                price: variant.price ?? "",
-                stock: variant.stock ?? "",
-              }))
-            : [
-                {
-                  name: "",
-                  price: "",
-                  stock: "",
-                },
-              ],
-      });
+    if (!open) return;
 
-      setErrors({});
+    if (product) {
+      setForm(mapProductToForm(product));
+    } else {
+      setForm(initialForm);
     }
+
+    setErrors({});
   }, [open, product]);
 
   const pricePreview = useMemo(
@@ -135,7 +136,7 @@ export default function ProductEditDrawer({
     }
 
     if (form.basePrice === "" || Number(form.basePrice) < 0) {
-      newErrors.basePrice = "Base price must be 0 or more.";
+      newErrors.basePrice = "Actual/base price must be 0 or more.";
     }
 
     const cleanedVariants = form.variants.filter(
@@ -144,10 +145,6 @@ export default function ProductEditDrawer({
         variant.price !== "" ||
         variant.stock !== ""
     );
-
-    if (cleanedVariants.length === 0) {
-      newErrors.variants = "At least one variant is required.";
-    }
 
     const variantItemErrors = [];
     const seenNames = new Map();
@@ -200,6 +197,7 @@ export default function ProductEditDrawer({
     formData.append("basePrice", String(Number(form.basePrice || 0)));
     formData.append("isActive", String(!!form.isActive));
     formData.append("isSpecial", String(!!form.isSpecial));
+    formData.append("removeImage", String(!!form.removeImage));
 
     if (form.imageFile) {
       formData.append("image", form.imageFile);
@@ -220,7 +218,7 @@ export default function ProductEditDrawer({
         form.variants
           .filter((variant) => variant.name?.trim())
           .map((variant) => ({
-            ...(variant.id ? { id: variant.id } : {}),
+            id: variant.id,
             name: variant.name.trim(),
             price: Number(variant.price || 0),
             stock: Number(variant.stock || 0),
@@ -233,9 +231,7 @@ export default function ProductEditDrawer({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
-
     onSubmit?.(buildFormData());
   };
 
@@ -248,7 +244,7 @@ export default function ProductEditDrawer({
               Edit Product
             </h2>
             <p className="text-sm text-slate-500">
-              Update product details and manage its status
+              Update product details and manage image, variants and addons
             </p>
           </div>
 
@@ -265,7 +261,7 @@ export default function ProductEditDrawer({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Base Product Price
+                Actual Product Price
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-900">
                 {pricePreview.baseLabel}
@@ -274,7 +270,7 @@ export default function ProductEditDrawer({
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Original Price Range
+                Variant Price Range
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-900">
                 {pricePreview.variantLabel}

@@ -47,14 +47,10 @@ export default function ProductFormFields({
   };
 
   const removeVariant = (index) => {
-    setForm((prev) => {
-      if (prev.variants.length === 1) return prev;
-
-      return {
-        ...prev,
-        variants: prev.variants.filter((_, i) => i !== index),
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((_, i) => i !== index),
+    }));
   };
 
   const toggleAddon = (addonId) => {
@@ -81,6 +77,7 @@ export default function ProductFormFields({
       ...prev,
       imageFile: file,
       imagePreview: previewUrl,
+      removeImage: false,
     }));
   };
 
@@ -90,6 +87,7 @@ export default function ProductFormFields({
       imageFile: null,
       imagePreview: "",
       imageUrl: "",
+      removeImage: true,
     }));
   };
 
@@ -124,11 +122,13 @@ export default function ProductFormFields({
             className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none disabled:bg-slate-50"
           >
             <option value="">Select category</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
+            {categories
+              .filter((category) => !category?.deletedAt)
+              .map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
           </select>
           {errors?.categoryId ? (
             <p className="mt-1 text-sm text-rose-600">{errors.categoryId}</p>
@@ -137,14 +137,14 @@ export default function ProductFormFields({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">
-            Base Price
+            Actual Product Price
           </label>
           <input
             type="number"
             min="0"
             value={form.basePrice}
             onChange={(e) => updateField("basePrice", e.target.value)}
-            placeholder="Enter base product price"
+            placeholder="Enter actual product price"
             disabled={loading}
             className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none disabled:bg-slate-50"
           />

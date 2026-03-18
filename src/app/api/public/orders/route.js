@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCustomerFromRequest } from "@/lib/customer-auth";
 
 function generateOrderNumber() {
   const d = new Date();
@@ -14,40 +15,25 @@ function generateOrderNumber() {
   );
 }
 
-/**
- * openingHours format:
- * "10:00-23:00"
- */
 function checkStoreOpen(openingHours) {
-  if (!openingHours || typeof openingHours !== "string") return true;
+  if (!openingHours) return true;
 
-  const parts = openingHours.split("-");
-  if (parts.length !== 2) return true;
+  const [start, end] = openingHours.split("-");
+  if (!start || !end) return true;
 
-  const [start, end] = parts.map((p) => p.trim());
-
-  const [startH, startM] = start.split(":").map(Number);
-  const [endH, endM] = end.split(":").map(Number);
-
-  if (
-    Number.isNaN(startH) ||
-    Number.isNaN(startM) ||
-    Number.isNaN(endH) ||
-    Number.isNaN(endM)
-  ) {
-    return true;
-  }
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
 
   const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const startMinutes = startH * 60 + startM;
-  const endMinutes = endH * 60 + endM;
+  const current = now.getHours() * 60 + now.getMinutes();
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
 
-  if (startMinutes <= endMinutes) {
-    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  if (startMin <= endMin) {
+    return current >= startMin && current <= endMin;
   }
 
-  return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+  return current >= startMin || current <= endMin;
 }
 
 export async function POST(req) {
@@ -68,26 +54,26 @@ export async function POST(req) {
 
     if (!customerName || !mobile || !deliveryAddress) {
       return NextResponse.json(
-        { message: "customerName, mobile, deliveryAddress are required" },
+        { message: "customerName, mobile, deliveryAddress required" },
         { status: 400 }
       );
     }
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { message: "Order must contain at least 1 item" },
+        { message: "Cart is empty" },
         { status: 400 }
       );
     }
+
+    const customer = await getCustomerFromRequest();
 
     const settings = await prisma.siteSetting.findUnique({
       where: { id: "default" },
       select: { openingHours: true },
     });
 
-    const isOpen = checkStoreOpen(settings?.openingHours);
-
-    if (!isOpen) {
+    if (!checkStoreOpen(settings?.openingHours)) {
       return NextResponse.json(
         { message: "Store is currently closed" },
         { status: 400 }
@@ -106,10 +92,8 @@ export async function POST(req) {
           ? item.addonIds.map(Number)
           : [];
 
-        if (!productId || !variantId || !quantity || quantity <= 0) {
-          throw new Error(
-            "Each item must have valid productId, variantId and quantity"
-          );
+        if (!productId || !variantId || quantity <= 0) {
+          throw new Error("Invalid item data");
         }
 
         const product = await tx.product.findFirst({
@@ -125,9 +109,7 @@ export async function POST(req) {
           },
         });
 
-        if (!product) {
-          throw new Error("Product not found or inactive");
-        }
+        if (!product) throw new Error("Product not found");
 
         const variant = await tx.productVariant.findFirst({
           where: {
@@ -143,14 +125,10 @@ export async function POST(req) {
           },
         });
 
-        if (!variant) {
-          throw new Error(
-            "Variant not found, inactive, or does not belong to product"
-          );
-        }
+        if (!variant) throw new Error("Invalid variant");
 
         if (variant.stock < quantity) {
-          throw new Error(`Insufficient stock for variant ${variant.name}`);
+          throw new Error(`Insufficient stock for ${variant.name}`);
         }
 
         let addons = [];
@@ -161,22 +139,15 @@ export async function POST(req) {
             where: {
               id: { in: addonIds },
             },
-            select: {
-              id: true,
-              name: true,
-              price: true,
-              isActive: true,
-              deletedAt: true,
-            },
           });
 
           if (addons.length !== addonIds.length) {
-            throw new Error("One or more addons not found");
+            throw new Error("Invalid addon selection");
           }
 
           for (const addon of addons) {
             if (!addon.isActive || addon.deletedAt) {
-              throw new Error(`Addon ${addon.name} is inactive or deleted`);
+              throw new Error(`Addon ${addon.name} is not available`);
             }
             addonsTotal += Number(addon.price);
           }
@@ -197,8 +168,8 @@ export async function POST(req) {
         });
 
         preparedItems.push({
-          productId: product.id,
-          variantId: variant.id,
+          productId,
+          variantId,
           quantity,
           productPriceSnapshot: productPrice,
           variantPriceSnapshot: variantPrice,
@@ -212,6 +183,7 @@ export async function POST(req) {
       return tx.order.create({
         data: {
           orderNumber: generateOrderNumber(),
+          customerId: customer?.id || null,
           customerName,
           mobile,
           altMobile: altMobile || null,
@@ -255,15 +227,17 @@ export async function POST(req) {
 
     return NextResponse.json(
       {
-        message: "Order created successfully",
+        message: "Order placed successfully",
         order,
       },
       { status: 201 }
     );
-  } catch (err) {
+  } catch (error) {
+    console.error("ORDER ERROR:", error);
+
     return NextResponse.json(
       {
-        message: err.message || "Order creation failed",
+        message: error.message || "Order failed",
       },
       { status: 400 }
     );

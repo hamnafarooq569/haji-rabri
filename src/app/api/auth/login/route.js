@@ -7,10 +7,10 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    const normalizedEmail = String(body?.email || "").trim().toLowerCase();
+    const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
 
-    if (!normalizedEmail || !password) {
+    if (!email || !password) {
       return NextResponse.json(
         { message: "Email and password are required" },
         { status: 400 }
@@ -19,7 +19,7 @@ export async function POST(req) {
 
     const user = await prisma.user.findFirst({
       where: {
-        email: normalizedEmail,
+        email,
         deletedAt: null,
         isActive: true,
       },

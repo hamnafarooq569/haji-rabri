@@ -10,6 +10,11 @@ import addonReducer from "@/store/slices/addonSlice";
 import variantReducer from "@/store/slices/variantSlice";
 import orderReducer from "@/store/slices/orderSlice";
 import reportReducer from "@/store/slices/reportSlice";
+import publicProductReducer from "@/store/slices/publicProductSlice";
+import customerProfileReducer from "@/store/slices/customerProfileSlice";
+import customerCheckoutReducer from "@/store/slices/customerCheckoutSlice";
+import cartReducer from "@/store/slices/cartSlice";
+import customerAuthReducer from "@/store/slices/customerAuthSlice";
 
 export const store = configureStore({
   reducer: {
@@ -24,5 +29,10 @@ export const store = configureStore({
     variants: variantReducer,
     orders: orderReducer,
     reports: reportReducer,
+    publicProducts: publicProductReducer,
+    customerProfile: customerProfileReducer,
+    customerCheckout: customerCheckoutReducer,
+    cart: cartReducer,
+    customerAuth: customerAuthReducer,
   },
 });

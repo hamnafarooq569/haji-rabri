@@ -110,11 +110,12 @@ async function getProductById(req, ctx) {
  * - categoryId
  * - name
  * - description
- * - basePrice
+ * - basePrice              // actual product price
  * - compareAt
  * - isActive
  * - isSpecial
- * - variants (JSON string, required)
+ * - removeImage           // true/false
+ * - variants (JSON string, optional)
  * - addonIds (JSON string, optional)
  * - image (file, optional)
  */
@@ -134,6 +135,7 @@ async function updateProduct(req, ctx) {
       categoryId: true,
       deletedAt: true,
       imagePublicId: true,
+      imageUrl: true,
     },
   });
 
@@ -152,6 +154,7 @@ async function updateProduct(req, ctx) {
   const image = formData.get("image");
   const isActiveRaw = formData.get("isActive");
   const isSpecialRaw = formData.get("isSpecial");
+  const removeImage = formData.get("removeImage") === "true";
   const basePriceRaw = formData.get("basePrice");
   const compareAtRaw = formData.get("compareAt");
 
@@ -169,22 +172,6 @@ async function updateProduct(req, ctx) {
       { message: "variants/addonIds must be valid JSON" },
       { status: 400 }
     );
-  }
-
-  if (!Array.isArray(variants) || variants.length === 0) {
-    return NextResponse.json(
-      { message: "At least 1 variant is required" },
-      { status: 400 }
-    );
-  }
-
-  for (const v of variants) {
-    if (!v.name || v.price === undefined || v.price === null) {
-      return NextResponse.json(
-        { message: "Each variant must have name and price" },
-        { status: 400 }
-      );
-    }
   }
 
   if (addonIds !== undefined && !Array.isArray(addonIds)) {
@@ -214,6 +201,26 @@ async function updateProduct(req, ctx) {
       { message: "compareAt must be a valid non-negative number" },
       { status: 400 }
     );
+  }
+
+  const cleanedVariants = Array.isArray(variants)
+    ? variants.filter((v) => String(v?.name || "").trim())
+    : [];
+
+  for (const v of cleanedVariants) {
+    if (v.price === undefined || v.price === null || Number(v.price) < 0) {
+      return NextResponse.json(
+        { message: "Each variant must have a valid non-negative price" },
+        { status: 400 }
+      );
+    }
+
+    if (v.stock !== undefined && v.stock !== null && Number(v.stock) < 0) {
+      return NextResponse.json(
+        { message: "Each variant stock must be 0 or more" },
+        { status: 400 }
+      );
+    }
   }
 
   const categoryId =
@@ -270,6 +277,13 @@ async function updateProduct(req, ctx) {
     if (existing.imagePublicId) {
       await deleteCloudinaryImage(existing.imagePublicId);
     }
+  } else if (removeImage) {
+    imageUrl = null;
+    imagePublicId = null;
+
+    if (existing.imagePublicId) {
+      await deleteCloudinaryImage(existing.imagePublicId);
+    }
   }
 
   const slug = name ? slugify(String(name)) : existing.slug;
@@ -282,12 +296,14 @@ async function updateProduct(req, ctx) {
         name: name !== null ? String(name) : undefined,
         slug,
         description: description !== null ? String(description) : undefined,
-        imageUrl: imageUrl ?? undefined,
-        imagePublicId: imagePublicId ?? undefined,
+        imageUrl:
+          imageUrl !== undefined ? imageUrl : undefined,
+        imagePublicId:
+          imagePublicId !== undefined ? imagePublicId : undefined,
         basePrice:
           basePriceRaw !== null
             ? basePriceRaw === ""
-              ? null
+              ? 0
               : Number(basePriceRaw)
             : undefined,
         compareAt:
@@ -307,17 +323,19 @@ async function updateProduct(req, ctx) {
       where: { productId },
     });
 
-    await tx.productVariant.createMany({
-      data: variants.map((v, idx) => ({
-        productId,
-        name: v.name,
-        price: v.price,
-        compareAt: v.compareAt ?? null,
-        stock: v.stock ?? 0,
-        sortOrder: idx,
-        isActive: typeof v.isActive === "boolean" ? v.isActive : true,
-      })),
-    });
+    if (cleanedVariants.length > 0) {
+      await tx.productVariant.createMany({
+        data: cleanedVariants.map((v, idx) => ({
+          productId,
+          name: v.name,
+          price: Number(v.price || 0),
+          compareAt: v.compareAt ?? null,
+          stock: Number(v.stock || 0),
+          sortOrder: idx,
+          isActive: typeof v.isActive === "boolean" ? v.isActive : true,
+        })),
+      });
+    }
 
     if (addonIds !== undefined) {
       await tx.productAddon.deleteMany({

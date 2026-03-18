@@ -16,10 +16,6 @@ function slugify(str) {
 
 /**
  * GET /api/products -> products:view
- * Optional filters:
- *  - ?categoryId=1
- *  - ?categorySlug=rabri
- * Hides soft-deleted products and deleted categories
  */
 async function listProducts(req) {
   const { searchParams } = new URL(req.url);
@@ -129,10 +125,12 @@ async function listProducts(req) {
  * - categoryId
  * - name
  * - description
- * - basePrice
+ * - basePrice                // actual product price
  * - compareAt
  * - isSpecial
- * - variants (JSON string, required)
+ * - isActive
+ * - removeImage             // optional
+ * - variants (JSON string, optional)
  * - addonIds (JSON string, optional)
  * - image (file, optional)
  */
@@ -146,6 +144,8 @@ async function createProduct(req) {
   const basePriceRaw = formData.get("basePrice");
   const compareAtRaw = formData.get("compareAt");
   const isSpecial = formData.get("isSpecial") === "true";
+  const isActiveRaw = formData.get("isActive");
+  const removeImage = formData.get("removeImage") === "true";
 
   const variantsRaw = formData.get("variants");
   const addonIdsRaw = formData.get("addonIds");
@@ -168,22 +168,6 @@ async function createProduct(req) {
       { message: "categoryId and name are required" },
       { status: 400 }
     );
-  }
-
-  if (!Array.isArray(variants) || variants.length === 0) {
-    return NextResponse.json(
-      { message: "At least 1 variant is required" },
-      { status: 400 }
-    );
-  }
-
-  for (const v of variants) {
-    if (!v.name || v.price === undefined || v.price === null) {
-      return NextResponse.json(
-        { message: "Each variant must have name and price" },
-        { status: 400 }
-      );
-    }
   }
 
   if (!Array.isArray(addonIds)) {
@@ -213,6 +197,26 @@ async function createProduct(req) {
       { message: "compareAt must be a valid non-negative number" },
       { status: 400 }
     );
+  }
+
+  const cleanedVariants = Array.isArray(variants)
+    ? variants.filter((v) => String(v?.name || "").trim())
+    : [];
+
+  for (const v of cleanedVariants) {
+    if (v.price === undefined || v.price === null || Number(v.price) < 0) {
+      return NextResponse.json(
+        { message: "Each variant must have a valid non-negative price" },
+        { status: 400 }
+      );
+    }
+
+    if (v.stock !== undefined && v.stock !== null && Number(v.stock) < 0) {
+      return NextResponse.json(
+        { message: "Each variant stock must be 0 or more" },
+        { status: 400 }
+      );
+    }
   }
 
   const category = await prisma.category.findFirst({
@@ -248,7 +252,7 @@ async function createProduct(req) {
   let imageUrl = null;
   let imagePublicId = null;
 
-  if (image && image instanceof File && image.size > 0) {
+  if (!removeImage && image && image instanceof File && image.size > 0) {
     const arrayBuffer = await image.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -275,22 +279,25 @@ async function createProduct(req) {
       basePrice:
         basePriceRaw !== null && basePriceRaw !== ""
           ? Number(basePriceRaw)
-          : null,
+          : 0,
       compareAt:
         compareAtRaw !== null && compareAtRaw !== ""
           ? Number(compareAtRaw)
           : null,
       isSpecial,
-      variants: {
-        create: variants.map((v, idx) => ({
-          name: v.name,
-          price: v.price,
-          compareAt: v.compareAt ?? null,
-          stock: v.stock ?? 0,
-          sortOrder: idx,
-          isActive: true,
-        })),
-      },
+      isActive: isActiveRaw !== null ? String(isActiveRaw) === "true" : true,
+      variants: cleanedVariants.length
+        ? {
+            create: cleanedVariants.map((v, idx) => ({
+              name: v.name,
+              price: Number(v.price || 0),
+              compareAt: v.compareAt ?? null,
+              stock: Number(v.stock || 0),
+              sortOrder: idx,
+              isActive: typeof v.isActive === "boolean" ? v.isActive : true,
+            })),
+          }
+        : undefined,
       addons: {
         create: validAddons.map((a) => ({
           addonId: a.id,
@@ -306,6 +313,7 @@ async function createProduct(req) {
       imagePublicId: true,
       basePrice: true,
       compareAt: true,
+      isActive: true,
       isSpecial: true,
       category: {
         select: { id: true, name: true },

@@ -25,16 +25,16 @@ enum PaymentMethod {
   CASH
   CARD
   ONLINE
-} 
+}
 
 model Role {
   id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(80) // dynamic: ADMIN, Manager, Cashier...
+  name        String   @unique @db.VarChar(80)
   description String?  @db.VarChar(255)
   isActive    Boolean  @default(true)
   deletedAt   DateTime?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  updatedAt   DateTime @updatedAt
 
   users       User[]
   permissions RolePermission[]
@@ -42,9 +42,9 @@ model Role {
 
 model Permission {
   id        Int      @id @default(autoincrement())
-  module    String   @db.VarChar(60) // products, orders, users, roles...
-  action    String   @db.VarChar(30) // view, add, edit, delete
-  key       String   @unique @db.VarChar(120) // "products:add"
+  module    String   @db.VarChar(60)
+  action    String   @db.VarChar(30)
+  key       String   @unique @db.VarChar(120)
   createdAt DateTime @default(now())
 
   roles RolePermission[]
@@ -71,13 +71,35 @@ model User {
   role   Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   isActive  Boolean  @default(true)
-  deletedAt    DateTime?
+  deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   orders Order[]
 
   @@index([roleId])
+}
+
+model Customer {
+  id            Int      @id @default(autoincrement())
+
+  name          String   @db.VarChar(120)
+  email         String   @unique @db.VarChar(190)
+  phone         String   @unique @db.VarChar(30)
+
+  passwordHash  String?  @db.VarChar(255)
+
+  isActive      Boolean  @default(true)
+  isVerified    Boolean  @default(false)
+
+  otpCode       String?  @db.VarChar(10)
+  otpExpiresAt  DateTime?
+
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders        Order[]
 }
 
 model Category {
@@ -103,22 +125,22 @@ model Product {
   slug        String  @unique @db.VarChar(180)
   description String? @db.Text
   imageUrl    String? @db.VarChar(500)
-  imagePublicId String?  @db.VarChar(255)
+  imagePublicId String? @db.VarChar(255)
+
   isSpecial Boolean @default(false)
-  basePrice   Decimal? @db.Decimal(10, 2)
-  compareAt   Decimal? @db.Decimal(10, 2)
+
+  basePrice Decimal? @db.Decimal(10, 2)
+  compareAt Decimal? @db.Decimal(10, 2)
 
   isActive Boolean @default(true)
-
-  deletedAt DateTime? // ✅ add this
+  deletedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orderItems OrderItem[]
-
   variants ProductVariant[]
-  addons      ProductAddon[] 
+  addons   ProductAddon[]
+  orderItems OrderItem[]
 
   @@index([categoryId])
 }
@@ -128,32 +150,42 @@ model ProductVariant {
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  // examples: "250g", "500g", "1kg", "1 piece", "1 pound", "0.5 liter"
   name String @db.VarChar(60)
 
   price     Decimal  @db.Decimal(10, 2)
-  compareAt Decimal? @db.Decimal(10, 2) // optional "old price"
+  compareAt Decimal? @db.Decimal(10, 2)
   stock     Int      @default(0)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
 
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   orderItems OrderItem[]
 
-  @@unique([productId, name]) // same product can’t have duplicate variant names
+  @@unique([productId, name])
   @@index([productId])
 }
 
 model Order {
   id            Int           @id @default(autoincrement())
   orderNumber   String        @unique
+
+  // ADMIN USER (existing)
   userId        Int?
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // CUSTOMER (NEW)
+  customerId Int?
+  customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
   totalAmount   Decimal       @db.Decimal(10, 2)
+
   status        OrderStatus   @default(RECEIVED)
   paymentStatus PaymentStatus @default(UNPAID)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  paymentMethod PaymentMethod @default(CASH)
+
+  // CUSTOMER DETAILS (snapshot)
   customerName      String   @db.VarChar(120)
   mobile            String   @db.VarChar(30)
   altMobile         String?  @db.VarChar(30)
@@ -164,12 +196,13 @@ model Order {
 
   deletedAt DateTime?
 
-  paymentMethod     PaymentMethod @default(CASH)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   items OrderItem[]
 
   @@index([userId])
+  @@index([customerId])
   @@index([status])
   @@index([paymentStatus])
   @@index([createdAt])
@@ -197,7 +230,7 @@ model OrderItem {
   lineTotal Decimal @default(0) @db.Decimal(10,2)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
   addons OrderItemAddon[]
 
@@ -244,22 +277,25 @@ model Addon {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(120)
   price     Decimal  @db.Decimal(10, 2)
-  imageUrl      String?  @db.VarChar(500)   
-  imagePublicId String?  @db.VarChar(255) 
+
+  imageUrl      String?  @db.VarChar(500)
+  imagePublicId String?  @db.VarChar(255)
+
   isActive  Boolean  @default(true)
   deletedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products  ProductAddon[]
+  products ProductAddon[]
 }
 
 model ProductAddon {
   productId Int
   addonId   Int
 
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  addon     Addon   @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  addon   Addon   @relation(fields: [addonId], references: [id], onDelete: Cascade)
 
   @@id([productId, addonId])
 }
