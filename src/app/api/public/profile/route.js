@@ -7,10 +7,7 @@ export async function GET() {
     const authCustomer = await getCustomerFromRequest();
 
     if (!authCustomer?.id) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const customer = await prisma.customer.findUnique({
@@ -48,10 +45,7 @@ export async function PATCH(req) {
     const authCustomer = await getCustomerFromRequest();
 
     if (!authCustomer?.id) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -67,10 +61,16 @@ export async function PATCH(req) {
       );
     }
 
+    const duplicateConditions = [{ email }];
+
+    if (phone) {
+      duplicateConditions.push({ phone });
+    }
+
     const duplicate = await prisma.customer.findFirst({
       where: {
         id: { not: authCustomer.id },
-        OR: [{ email }, ...(phone ? [{ phone }] : [])],
+        OR: duplicateConditions,
       },
     });
 

@@ -72,6 +72,9 @@ export default function ProductDetailPage() {
   const unitPrice = productPrice + variantPrice + addonsTotal;
   const lineTotal = unitPrice * quantity;
 
+  const hasDescription = Boolean(currentProduct?.description?.trim());
+  const hasAddons = normalizedAddons.length > 0;
+
   const handleToggleAddon = (addonId) => {
     setSelectedAddonIds((prev) =>
       prev.includes(addonId)
@@ -112,7 +115,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black px-4 py-10 text-white">
+      <main className="min-h-screen bg-[#050505] px-4 py-10 text-white">
         <div className="mx-auto max-w-6xl">
           <p>Loading product...</p>
         </div>
@@ -122,7 +125,7 @@ export default function ProductDetailPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-black px-4 py-10 text-white">
+      <main className="min-h-screen bg-[#050505] px-4 py-10 text-white">
         <div className="mx-auto max-w-6xl">
           <p className="text-red-400">{error}</p>
         </div>
@@ -132,7 +135,7 @@ export default function ProductDetailPage() {
 
   if (!currentProduct) {
     return (
-      <main className="min-h-screen bg-black px-4 py-10 text-white">
+      <main className="min-h-screen bg-[#050505] px-4 py-10 text-white">
         <div className="mx-auto max-w-6xl">
           <p>Product not found.</p>
         </div>
@@ -141,12 +144,12 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black px-4 py-10 text-white">
+    <main className="min-h-screen bg-[#050505] px-4 py-8 text-white md:px-6 md:py-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6">
           <Link
             href="/"
-            className="rounded-xl border border-white/10 bg-[#111] px-4 py-2 text-sm font-medium"
+            className="inline-flex rounded-xl border border-white/10 bg-[#111] px-4 py-2 text-sm font-medium text-white transition hover:border-red-500 hover:text-red-400"
           >
             ← Back to Store
           </Link>
@@ -155,35 +158,40 @@ export default function ProductDetailPage() {
         <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#111]">
             {currentProduct.imageUrl ? (
-              <img
-                src={currentProduct.imageUrl}
-                alt={currentProduct.name}
-                className="h-full max-h-[520px] w-full object-cover"
-              />
+              <div className="aspect-square w-full">
+                <img
+                  src={currentProduct.imageUrl}
+                  alt={currentProduct.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
             ) : (
-              <div className="flex h-[420px] items-center justify-center text-white/40">
+              <div className="flex aspect-square w-full items-center justify-center bg-[#cf0f2f] text-white/40">
                 No Image
               </div>
             )}
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-[#111] p-6">
-            <h1 className="text-3xl font-bold">{currentProduct.name}</h1>
+          <div className="rounded-3xl border border-white/10 bg-[#111] p-6 md:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold md:text-4xl">
+                  {currentProduct.name}
+                </h1>
 
-            <p className="mt-3 text-white/70">
-              {currentProduct.description || "No description available."}
-            </p>
-
-            <div className="mt-4 flex flex-wrap gap-3 text-sm">
-              <span className="rounded-full bg-black px-3 py-1 text-white/80">
-                Availability: {currentProduct.availability}
-              </span>
-              {currentProduct.isSpecial && (
-                <span className="rounded-full bg-red-600 px-3 py-1 text-white">
-                  Special
-                </span>
-              )}
+                {currentProduct.isSpecial && (
+                  <span className="mt-3 inline-flex rounded-full bg-red-600 px-3 py-1 text-sm font-medium text-white">
+                    Special
+                  </span>
+                )}
+              </div>
             </div>
+
+            {hasDescription && (
+              <p className="mt-5 text-[15px] leading-7 text-white/70">
+                {currentProduct.description}
+              </p>
+            )}
 
             <div className="mt-8">
               <h2 className="mb-3 text-lg font-semibold">Select Variant</h2>
@@ -192,7 +200,7 @@ export default function ProductDetailPage() {
                 {currentProduct.variants?.map((variant) => (
                   <label
                     key={variant.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 ${
+                    className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 transition ${
                       selectedVariantId === variant.id
                         ? "border-red-500 bg-black"
                         : "border-white/10 bg-black"
@@ -206,6 +214,7 @@ export default function ProductDetailPage() {
                         onChange={() => setSelectedVariantId(variant.id)}
                         disabled={!variant.isActive}
                       />
+
                       <div>
                         <p className="font-medium">{variant.name}</p>
                         <p className="text-xs text-white/50">
@@ -222,17 +231,15 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <div className="mt-8">
-              <h2 className="mb-3 text-lg font-semibold">Addons</h2>
+            {hasAddons && (
+              <div className="mt-8">
+                <h2 className="mb-3 text-lg font-semibold">Addons</h2>
 
-              {normalizedAddons.length === 0 ? (
-                <p className="text-sm text-white/50">No addons available.</p>
-              ) : (
                 <div className="space-y-3">
                   {normalizedAddons.map((addon) => (
                     <label
                       key={addon.id}
-                      className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 ${
+                      className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 transition ${
                         selectedAddonIds.includes(addon.id)
                           ? "border-red-500 bg-black"
                           : "border-white/10 bg-black"
@@ -251,8 +258,8 @@ export default function ProductDetailPage() {
                     </label>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="mt-8">
               <h2 className="mb-3 text-lg font-semibold">Quantity</h2>
@@ -260,7 +267,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                  className="rounded-xl border border-white/10 bg-black px-4 py-2"
+                  className="rounded-xl border border-white/10 bg-black px-4 py-2 transition hover:border-red-500"
                 >
                   -
                 </button>
@@ -271,7 +278,7 @@ export default function ProductDetailPage() {
 
                 <button
                   onClick={() => setQuantity((prev) => prev + 1)}
-                  className="rounded-xl border border-white/10 bg-black px-4 py-2"
+                  className="rounded-xl border border-white/10 bg-black px-4 py-2 transition hover:border-red-500"
                 >
                   +
                 </button>
@@ -279,35 +286,11 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="mt-8 rounded-2xl border border-white/10 bg-black p-5">
-              <h2 className="text-lg font-semibold">Price Summary</h2>
-
-              <div className="mt-4 space-y-2 text-sm text-white/70">
-                <div className="flex justify-between">
-                  <span>Base Price</span>
-                  <span>Rs. {productPrice}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>Variant Price</span>
-                  <span>Rs. {variantPrice}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>Addons Total</span>
-                  <span>Rs. {addonsTotal}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>Unit Price</span>
-                  <span>Rs. {unitPrice}</span>
-                </div>
-
-                <div className="border-t border-white/10 pt-2 text-base font-semibold text-white">
-                  <div className="flex justify-between">
-                    <span>Total</span>
-                    <span>Rs. {lineTotal}</span>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Price</h2>
+                <span className="text-2xl font-bold text-white">
+                  Rs. {lineTotal}
+                </span>
               </div>
             </div>
 
@@ -316,7 +299,7 @@ export default function ProductDetailPage() {
               disabled={
                 currentProduct.availability !== "AVAILABLE" || !selectedVariant
               }
-              className="mt-8 w-full rounded-2xl bg-red-600 px-4 py-4 text-lg font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-8 w-full rounded-2xl bg-red-600 px-4 py-4 text-lg font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add to Cart
             </button>

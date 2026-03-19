@@ -60,10 +60,7 @@ export async function POST(req) {
     }
 
     if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { message: "Cart is empty" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Cart is empty" }, { status: 400 });
     }
 
     const customer = await getCustomerFromRequest();
@@ -80,7 +77,7 @@ export async function POST(req) {
       );
     }
 
-    const order = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       let totalAmount = 0;
       const preparedItems = [];
 
@@ -109,7 +106,9 @@ export async function POST(req) {
           },
         });
 
-        if (!product) throw new Error("Product not found");
+        if (!product) {
+          throw new Error("Product not found");
+        }
 
         const variant = await tx.productVariant.findFirst({
           where: {
@@ -125,7 +124,9 @@ export async function POST(req) {
           },
         });
 
-        if (!variant) throw new Error("Invalid variant");
+        if (!variant) {
+          throw new Error("Invalid variant");
+        }
 
         if (variant.stock < quantity) {
           throw new Error(`Insufficient stock for ${variant.name}`);
@@ -154,7 +155,7 @@ export async function POST(req) {
         }
 
         const productPrice = Number(product.basePrice || 0);
-        const variantPrice = Number(variant.price);
+        const variantPrice = Number(variant.price || 0);
         const unitPrice = productPrice + variantPrice + addonsTotal;
         const lineTotal = unitPrice * quantity;
 
@@ -180,7 +181,7 @@ export async function POST(req) {
         });
       }
 
-      return tx.order.create({
+      const order = await tx.order.create({
         data: {
           orderNumber: generateOrderNumber(),
           customerId: customer?.id || null,
@@ -223,12 +224,27 @@ export async function POST(req) {
           },
         },
       });
+
+      if (customer?.id) {
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: {
+            name: customerName,
+            phone: mobile,
+            altPhone: altMobile || null,
+            nearestLandmark: nearestLandmark || null,
+            deliveryAddress: deliveryAddress || null,
+          },
+        });
+      }
+
+      return order;
     });
 
     return NextResponse.json(
       {
         message: "Order placed successfully",
-        order,
+        order: result,
       },
       { status: 201 }
     );

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCustomerFromToken } from "@/lib/customer-auth";
+import { getCustomerFromRequest } from "@/lib/customer-auth";
 
-export async function GET(req) {
+export async function GET() {
   try {
-    const customer = await getCustomerFromToken(req);
+    const customer = await getCustomerFromRequest();
 
-    if (!customer) {
+    if (!customer?.id) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 401 }
@@ -34,6 +34,7 @@ export async function GET(req) {
                 name: true,
               },
             },
+            addons: true,
           },
         },
       },
@@ -48,13 +49,19 @@ export async function GET(req) {
         paymentMethod: order.paymentMethod,
         totalAmount: Number(order.totalAmount),
         createdAt: order.createdAt,
-
         items: order.items.map((item) => ({
+          id: item.id,
           productName: item.product?.name || null,
           variantName: item.variant?.name || null,
           quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-          lineTotal: Number(item.lineTotal),
+          unitPrice: Number(item.unitPrice || 0),
+          lineTotal: Number(item.lineTotal || 0),
+          addons: (item.addons || []).map((addon) => ({
+            id: addon.id,
+            addonId: addon.addonId,
+            addonNameSnapshot: addon.addonNameSnapshot,
+            addonPriceSnapshot: Number(addon.addonPriceSnapshot || 0),
+          })),
         })),
       })),
     });

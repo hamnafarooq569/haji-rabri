@@ -92,6 +92,11 @@ model Customer {
   isActive      Boolean  @default(true)
   isVerified    Boolean  @default(false)
 
+  altPhone          String?
+  nearestLandmark   String?
+  deliveryAddress   String?
+  
+
   otpCode       String?  @db.VarChar(10)
   otpExpiresAt  DateTime?
 

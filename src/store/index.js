@@ -15,6 +15,7 @@ import customerProfileReducer from "@/store/slices/customerProfileSlice";
 import customerCheckoutReducer from "@/store/slices/customerCheckoutSlice";
 import cartReducer from "@/store/slices/cartSlice";
 import customerAuthReducer from "@/store/slices/customerAuthSlice";
+import customerOrderReducer from "@/store/slices/customerOrderSlice";
 
 export const store = configureStore({
   reducer: {
@@ -34,5 +35,6 @@ export const store = configureStore({
     customerCheckout: customerCheckoutReducer,
     cart: cartReducer,
     customerAuth: customerAuthReducer,
+    customerOrders: customerOrderReducer,
   },
 });

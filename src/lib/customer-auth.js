@@ -28,4 +28,9 @@ export async function getCustomerFromRequest() {
   }
 }
 
+// optional compatibility helper
+export async function getCustomerFromToken() {
+  return getCustomerFromRequest();
+}
+
 export const customerCookieName = CUSTOMER_COOKIE;

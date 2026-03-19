@@ -3,27 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #050505;
+  --foreground: #f5f5f5;
+  --font-body: var(--font-geist-sans);
+  --font-heading: var(--font-heading);
 }
 
 html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -39,100 +35,32 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+.heading-font,
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading), Arial, Helvetica, sans-serif;
 }
 
-/* Hide scrollbar but keep scroll functionality */
 .hide-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
-  display: none;             /* Chrome, Safari */
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* table container */
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.table thead {
-  background: #f1f5f9;
-}
-
-.table thead th {
-  text-align: left;
-  padding: 14px 16px;
-  font-weight: 600;
-  color: #0f172a;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.table tbody tr {
-  border-bottom: 1px solid #e2e8f0;
-  transition: background 0.2s ease;
-}
-
-.table tbody tr:hover {
-  background: #f8fafc;
-}
-
-.table td {
-  padding: 14px 16px;
-  color: #334155;
-}
-
-/* pagination */
-
-.pagination {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.pagination-item {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.pagination-item:hover {
-  background: #f1f5f9;
-}
-
-.pagination-item.active {
-  background: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
-}
-
-/* search */
-
-.form-input {
-  border: 1px solid #e2e8f0;
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-
-.form-select {
-  border: 1px solid #e2e8f0;
-  padding: 6px 8px;
-  border-radius: 6px;
-}
-
-/* =========================
-   Domiex-like Datatable
-========================= */
 
 .table-container {
   width: 100%;
@@ -144,6 +72,10 @@ a {
   border-spacing: 0;
   font-size: 14px;
   color: #334155;
+}
+
+.table thead {
+  background: #f1f5f9;
 }
 
 .table thead th {
@@ -170,6 +102,7 @@ a {
 
 .table tbody td {
   padding: 14px 16px;
+  color: #334155;
   border-bottom: 1px solid #e2e8f0;
   vertical-align: middle;
   white-space: nowrap;
@@ -179,9 +112,77 @@ a {
   transition: background-color 0.2s ease;
 }
 
+.table tbody tr:hover,
 .table.hovered tbody tr:hover {
   background: #f8fafc;
 }
+
+/* pagination */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagination-item {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #dbe3ee;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.pagination-item:hover {
+  background: #f1f5f9;
+}
+
+.pagination-item.active {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.pagination-item.disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+/* search */
+
+.form-input,
+.form-select {
+  border: 1px solid #dbe3ee;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 8px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+}
+
+.form-select {
+  padding: 8px 10px;
+}
+
+/* =========================
+   Domiex-like Datatable
+========================= */
 
 .dt-th-content {
   display: inline-flex;
@@ -226,23 +227,6 @@ a {
   font-size: 14px;
 }
 
-.form-input,
-.form-select {
-  border: 1px solid #dbe3ee;
-  background: #fff;
-  color: #334155;
-  border-radius: 8px;
-  padding: 8px 12px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.form-input:focus,
-.form-select:focus {
-  border-color: #94a3b8;
-  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
-}
-
 .dt-footer {
   margin-top: 20px;
   display: grid;
@@ -264,43 +248,6 @@ a {
 .dt-info {
   font-size: 14px;
   color: #475569;
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.pagination-item {
-  min-width: 36px;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid #dbe3ee;
-  border-radius: 8px;
-  background: #fff;
-  color: #334155;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.pagination-item:hover {
-  background: #f8fafc;
-}
-
-.pagination-item.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: #fff;
-}
-
-.pagination-item.disabled {
-  pointer-events: none;
-  opacity: 0.45;
 }
 
 .display.group.hovered.table.whitespace-nowrap.dtr-inline {
